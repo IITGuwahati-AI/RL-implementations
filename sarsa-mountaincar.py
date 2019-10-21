@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 env = gym.make('MountainCar-v0')
 env.reset()
 
-def QLearning(env, learning, discount, epsilon, min_eps, episodes):
+def SARSA(env, learning, discount, epsilon, min_eps, episodes):
     # Determine size of discretized state space
     num_states = (env.observation_space.high - env.observation_space.low)*\
                     np.array([10, 100])
@@ -39,21 +39,15 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
         done = False
         tot_reward, reward = 0,0
         state = env.reset()
-        
+        if np.random.random() < 1 - epsilon:
+           action = np.argmax(Q[state_adj[0], state_adj[1]]) 
+        else:
+           action = np.random.randint(0, env.action_space.n)
         # Discretize state
         state_adj = (state - env.observation_space.low)*np.array([10, 100])
         state_adj = np.round(state_adj, 0).astype(int)
     
         while done != True:   
-            # Render environment for last five episodes
-#             if i >= (episodes - 10):
-#                 env.render()
-                
-            # Determine next action - epsilon greedy strategy
-            if np.random.random() < 1 - epsilon:
-                action = np.argmax(Q[state_adj[0], state_adj[1]]) 
-            else:
-                action = np.random.randint(0, env.action_space.n)
                 
             # Get next state and reward
             state2, reward, done, info = env.step(action) 
@@ -62,6 +56,11 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
             state2_adj = (state2 - env.observation_space.low)*np.array([10, 100])
             state2_adj = np.round(state2_adj, 0).astype(int)
             
+            if np.random.random() < 1 - epsilon:
+                action2 = np.argmax(Q[state2_adj[0], state2_adj[1]]) 
+            else:
+                action2 = np.random.randint(0, env.action_space.n)
+            
             #Allow for terminal states
             if done and state2[0] >= 0.5:
                 Q[state_adj[0], state_adj[1], action] = reward
@@ -69,14 +68,15 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
             # Adjust Q value for current state
             else:
                 delta = learning*(reward + 
-                                 discount*np.max(Q[state2_adj[0], 
-                                                   state2_adj[1]]) - 
+                                 discount*(Q[state2_adj[0], 
+                                                   state2_adj[1],action2]) - 
                                  Q[state_adj[0], state_adj[1],action])
                 Q[state_adj[0], state_adj[1],action] += delta
                                      
             # Update variables
             tot_reward += reward
             state_adj = state2_adj
+            action = action2
         
         # Decay epsilon
         if epsilon > min_eps:
@@ -98,7 +98,7 @@ def QLearning(env, learning, discount, epsilon, min_eps, episodes):
     return ave_reward_list
 
 # Run Q-learning algorithm
-rewards = QLearning(env, 0.1, 0.9, 0.8, 0, 10000)
+rewards = SARSA(env, 0.1, 0.9, 0.8, 0, 10000)
 
 # Plot Rewards
 plt.plot(100*(np.arange(len(rewards)) + 1), rewards)
